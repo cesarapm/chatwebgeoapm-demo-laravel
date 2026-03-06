@@ -7,8 +7,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3010:9000"
-    volumes:
-      - .:/var/www
     env_file:
       - .env
     depends_on:
@@ -26,8 +24,6 @@ services:
     command: php artisan reverb:start --host=0.0.0.0 --port=8081 --no-interaction
     ports:
       - "8081:8081"
-    volumes:
-      - .:/var/www
     env_file:
       - .env
     depends_on:
