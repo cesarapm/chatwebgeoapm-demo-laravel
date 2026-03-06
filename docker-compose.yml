@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3010:9000"
+    volumes:
+      - ./public:/var/www/public
     env_file:
       - .env
     depends_on:
