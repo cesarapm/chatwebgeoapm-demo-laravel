@@ -23,13 +23,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    entrypoint: []
     command: php artisan reverb:start --host=0.0.0.0 --port=8081 --no-interaction
     ports:
       - "8081:8081"
     env_file:
       - .env
     depends_on:
-      - app
       - redis
     restart: unless-stopped
 
