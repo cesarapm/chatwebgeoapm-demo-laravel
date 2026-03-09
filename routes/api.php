@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusinessContextController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\MessageQuotaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Http\Request;
@@ -38,12 +40,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
     Route::patch('/conversations/{conversation}/toggle-human', [ConversationController::class, 'toggleHuman']);
     Route::post('/conversations/{conversation}/send', [ConversationController::class, 'sendHuman']);
+    Route::patch('/contacts/{contact}/name', [ContactController::class, 'updateName'])
+        ->middleware('role:admin|asesor');
+
+    // Estado de cuota mensual de mensajes
+    Route::get('/message-quota', [MessageQuotaController::class, 'show']);
 });
 
 // ─── Rutas exclusivas de Admin ───────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     // Gestión de asesores
     Route::get('/asesores', [UserController::class, 'index']);
+    Route::get('/asesores/limits', [UserController::class, 'limits']);
     Route::post('/asesores', [UserController::class, 'store']);
     Route::put('/asesores/{user}', [UserController::class, 'update']);
     Route::delete('/asesores/{user}', [UserController::class, 'destroy']);

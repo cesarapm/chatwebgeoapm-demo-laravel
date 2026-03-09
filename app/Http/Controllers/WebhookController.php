@@ -6,6 +6,7 @@ use App\Events\MessageReceived;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\MessageQuotaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +18,18 @@ class WebhookController extends Controller
      * manejará desde el front).
      * Si is_human = false, simplemente guarda y deja que n8n continúe con la IA.
      */
-    public function receive(Request $request)
+    public function receive(Request $request, MessageQuotaService $messageQuota)
     {
+        $quotaSnapshot = $messageQuota->snapshot();
+        $messageQuota->notifyIfChanged($quotaSnapshot);
+
+        if ($messageQuota->isBlocked($quotaSnapshot)) {
+            return response()->json([
+                'status' => 'blocked',
+                ...$messageQuota->blockedPayload($quotaSnapshot),
+            ], 429);
+        }
+
         $payload = $request->input('data', []);
 
         $from           = $payload['fromE164']        ?? null;
@@ -52,6 +63,9 @@ class WebhookController extends Controller
         // Emitir por WebSocket al front
         broadcast(new MessageReceived($message));
 
+        $quotaSnapshot = $messageQuota->snapshot();
+        $messageQuota->notifyIfChanged($quotaSnapshot);
+
         Log::info('Mensaje guardado', [
             'contact'      => $from,
             'conversation' => $conversation->id,
@@ -62,6 +76,7 @@ class WebhookController extends Controller
             'status'      => 'ok',
             'is_human'    => $conversation->is_human,
             'conversation_id' => $conversation->id,
+            'quota' => $quotaSnapshot,
         ], 200);
     }
 
@@ -69,8 +84,18 @@ class WebhookController extends Controller
      * Recibe el mensaje de respuesta que generó la IA en n8n
      * y lo guarda para mantener el hilo de la conversación.
      */
-    public function storeOutbound(Request $request)
+    public function storeOutbound(Request $request, MessageQuotaService $messageQuota)
     {
+
+        $quotaSnapshot = $messageQuota->snapshot();
+        $messageQuota->notifyIfChanged($quotaSnapshot);
+
+        if ($messageQuota->isBlocked($quotaSnapshot)) {
+            return response()->json([
+                'status' => 'blocked',
+                ...$messageQuota->blockedPayload($quotaSnapshot),
+            ], 429);
+        }
 
 
     Log::info('Webhook outbound received', $request->all());
@@ -90,6 +115,13 @@ class WebhookController extends Controller
 
         broadcast(new MessageReceived($message));
 
-        return response()->json(['status' => 'ok', 'message_id' => $message->id]);
+        $quotaSnapshot = $messageQuota->snapshot();
+        $messageQuota->notifyIfChanged($quotaSnapshot);
+
+        return response()->json([
+            'status' => 'ok',
+            'message_id' => $message->id,
+            'quota' => $quotaSnapshot,
+        ]);
     }
 }

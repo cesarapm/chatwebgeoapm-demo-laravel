@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AgentLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -31,11 +31,29 @@ class UserController extends Controller
     }
 
     /**
+     * Devuelve el estado del limite de asesores configurado.
+     * Solo admin.
+     */
+    public function limits(AgentLimitService $agentLimit)
+    {
+        return response()->json($agentLimit->snapshot());
+    }
+
+    /**
      * Crea un nuevo asesor.
      * Solo admin.
      */
-    public function store(Request $request)
+    public function store(Request $request, AgentLimitService $agentLimit)
     {
+        $limitSnapshot = $agentLimit->snapshot();
+
+        if (!$limitSnapshot['can_create']) {
+            return response()->json([
+                'error' => 'Se alcanzó el máximo de asesores permitidos.',
+                'limits' => $limitSnapshot,
+            ], 422);
+        }
+
         $validated = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
@@ -55,6 +73,7 @@ class UserController extends Controller
             'name'  => $user->name,
             'email' => $user->email,
             'role'  => 'asesor',
+            'limits' => $agentLimit->snapshot(),
         ], 201);
     }
 
